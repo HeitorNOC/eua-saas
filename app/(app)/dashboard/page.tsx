@@ -1,12 +1,10 @@
 import Link from "next/link"
 import {
   BriefcaseIcon,
-  CalendarIcon,
   CheckCircle2Icon,
-  ClipboardListIcon,
   DollarSignIcon,
   TrendingUpIcon,
-  UsersIcon,
+  PlusIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -18,10 +16,53 @@ import {
   PageSection,
 } from "@/components/page/page-container"
 import { MetricCard } from "@/components/cards/metric-card"
-import { ActionCard } from "@/components/cards/action-card"
+import { QuickActions } from "@/components/dashboard/quick-actions"
+import { ActivityFeed, type ActivityItem } from "@/components/dashboard/activity-feed"
 import { graphqlRequest } from "@/lib/api/graphql"
 import { getLocaleFromCookies } from "@/lib/i18n/locale"
 import { routes } from "@/lib/routes"
+
+// Mock activities - em producao viriam do backend
+function getMockActivities(): ActivityItem[] {
+  const now = new Date()
+  return [
+    {
+      id: "1",
+      type: "job_completed",
+      title: "Job #1234 concluido",
+      description: "Instalacao eletrica residencial - Cliente Silva",
+      timestamp: new Date(now.getTime() - 1000 * 60 * 15), // 15 min atras
+    },
+    {
+      id: "2",
+      type: "payment_received",
+      title: "Pagamento recebido",
+      description: "R$ 2.500,00 - Job #1230",
+      timestamp: new Date(now.getTime() - 1000 * 60 * 45), // 45 min atras
+    },
+    {
+      id: "3",
+      type: "client_added",
+      title: "Novo cliente cadastrado",
+      description: "Empresa ABC Ltda",
+      timestamp: new Date(now.getTime() - 1000 * 60 * 120), // 2h atras
+    },
+    {
+      id: "4",
+      type: "schedule_updated",
+      title: "Agendamento atualizado",
+      description: "Job #1232 remarcado para amanha",
+      timestamp: new Date(now.getTime() - 1000 * 60 * 180), // 3h atras
+    },
+    {
+      id: "5",
+      type: "job_created",
+      title: "Novo job criado",
+      description: "Manutencao preventiva - Cliente Oliveira",
+      timestamp: new Date(now.getTime() - 1000 * 60 * 240), // 4h atras
+    },
+  ]
+}
 
 export default async function DashboardPage() {
   const locale = await getLocaleFromCookies()
@@ -61,6 +102,7 @@ export default async function DashboardPage() {
   }
 
   const utilization = counts.total ? counts.active / counts.total : 0
+  const activities = getMockActivities()
 
   return (
     <PageContainer>
@@ -69,11 +111,20 @@ export default async function DashboardPage() {
         description={t("dashboard.subtitle")}
         actions={
           <Button asChild>
-            <Link href={routes.jobNew()}>{t("dashboard.newJob")}</Link>
+            <Link href={routes.jobNew()}>
+              <PlusIcon className="mr-2 size-4" />
+              {t("dashboard.newJob")}
+            </Link>
           </Button>
         }
       />
 
+      {/* Quick Actions */}
+      <PageSection>
+        <QuickActions />
+      </PageSection>
+
+      {/* Stats Grid */}
       <PageSection>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
@@ -108,26 +159,10 @@ export default async function DashboardPage() {
         </div>
       </PageSection>
 
-      <PageSection title={t("dashboard.quickActions")}>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <ActionCard
-            title={t("dashboard.newJob")}
-            description="Abrir fluxo completo de job e orcamento."
-            href={routes.jobNew()}
-            icon={<ClipboardListIcon className="size-5" />}
-          />
-          <ActionCard
-            title={t("dashboard.newClient")}
-            description="Registrar contatos e preferencias do cliente."
-            href={routes.clientNew()}
-            icon={<UsersIcon className="size-5" />}
-          />
-          <ActionCard
-            title={t("dashboard.newSchedule")}
-            description="Reservar equipe e horarios prioritarios."
-            href={routes.schedule}
-            icon={<CalendarIcon className="size-5" />}
-          />
+      {/* Activity Feed */}
+      <PageSection title="Atividade Recente">
+        <div className="rounded-xl border bg-card">
+          <ActivityFeed activities={activities} />
         </div>
       </PageSection>
     </PageContainer>

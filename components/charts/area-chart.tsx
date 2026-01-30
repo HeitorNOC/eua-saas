@@ -1,80 +1,103 @@
 "use client"
 
+import {
+  Area,
+  AreaChart as RechartsAreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
+
 import { cn } from "@/lib/utils"
 
 export type AreaChartProps = {
   data: Array<{ label: string; value: number }>
   className?: string
   height?: number
+  showGrid?: boolean
+  showXAxis?: boolean
+  showYAxis?: boolean
+  formatValue?: (value: number) => string
 }
 
-export function AreaChart({ data, className, height = 200 }: AreaChartProps) {
+export function AreaChart({
+  data,
+  className,
+  height = 200,
+  showGrid = true,
+  showXAxis = true,
+  showYAxis = false,
+  formatValue,
+}: AreaChartProps) {
   if (!data.length) return null
 
-  const maxValue = Math.max(...data.map((d) => d.value))
-  const minValue = Math.min(...data.map((d) => d.value))
-  const range = maxValue - minValue || 1
-
-  // Gera pontos para o path SVG
-  const width = 100
-  const chartHeight = 100
-  const padding = 10
-
-  const points = data.map((item, index) => {
-    const x = (index / (data.length - 1 || 1)) * (width - padding * 2) + padding
-    const y =
-      chartHeight -
-      padding -
-      ((item.value - minValue) / range) * (chartHeight - padding * 2)
-    return { x, y, ...item }
-  })
-
-  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
-  const areaPath = `${linePath} L ${points[points.length - 1]?.x ?? 0} ${chartHeight - padding} L ${padding} ${chartHeight - padding} Z`
+  const formatter = formatValue ?? ((v: number) => v.toLocaleString("pt-BR"))
 
   return (
-    <div className={cn("w-full", className)} style={{ height }}>
-      <svg
-        viewBox={`0 0 ${width} ${chartHeight}`}
-        className="h-full w-full"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity={0.2} />
-            <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        {/* Area fill */}
-        <path d={areaPath} fill="url(#areaGradient)" className="text-foreground" />
-        {/* Line */}
-        <path
-          d={linePath}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-foreground"
-        />
-        {/* Points */}
-        {points.map((point, i) => (
-          <circle
-            key={i}
-            cx={point.x}
-            cy={point.y}
-            r={2.5}
-            fill="currentColor"
-            className="text-foreground"
+    <div className={cn("w-full", className)}>
+      <ResponsiveContainer width="100%" height={height}>
+        <RechartsAreaChart
+          data={data}
+          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+        >
+          <defs>
+            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#171717" stopOpacity={0.2} />
+              <stop offset="100%" stopColor="#171717" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          {showGrid && (
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#e5e5e5"
+              vertical={false}
+            />
+          )}
+          {showXAxis && (
+            <XAxis
+              dataKey="label"
+              stroke="#737373"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+            />
+          )}
+          {showYAxis && (
+            <YAxis
+              stroke="#737373"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={formatter}
+            />
+          )}
+          <Tooltip
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null
+              const item = payload[0]
+              return (
+                <div className="rounded-lg border bg-card px-3 py-2 shadow-sm">
+                  <p className="text-xs text-muted-foreground">
+                    {item.payload.label}
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {formatter(item.value as number)}
+                  </p>
+                </div>
+              )
+            }}
           />
-        ))}
-      </svg>
-      {/* Labels */}
-      <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-        {data.map((item, i) => (
-          <span key={i}>{item.label}</span>
-        ))}
-      </div>
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke="#171717"
+            strokeWidth={2}
+            fill="url(#areaGradient)"
+          />
+        </RechartsAreaChart>
+      </ResponsiveContainer>
     </div>
   )
 }

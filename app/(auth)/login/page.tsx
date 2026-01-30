@@ -8,11 +8,18 @@ import { AuthForm } from "@/components/auth/auth-form"
 import { FormField } from "@/components/auth/form-field"
 import { routes } from "@/lib/routes"
 import { loginAction } from "@/actions/auth"
+import { useActionToast } from "@/hooks/use-action-toast"
 
 export default function LoginPage() {
   const router = useRouter()
   const [state, formAction] = useActionState(loginAction, { error: null, success: false })
   const hasSubmitted = useRef(false)
+
+  // Show toast on error (success redirects immediately)
+  useActionToast(state, {
+    errorPrefix: "Falha no login",
+    showOnSuccess: false,
+  })
 
   useEffect(() => {
     // Apenas redireciona se o form foi submetido com sucesso

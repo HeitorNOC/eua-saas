@@ -6,6 +6,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google"
 import "./globals.css"
 import { siteConfig, type Locale } from "@/config/site"
 import { I18nProvider } from "@/components/providers/i18n-provider"
+import { Toaster } from "@/components/ui/sonner"
 import { getMessages } from "@/lib/i18n/messages"
 import { getThemeFromCookies, themeToCssVariables } from "@/lib/theme"
 
@@ -52,6 +53,7 @@ export default async function RootLayout({
       >
         <I18nProvider locale={locale} messages={messages}>
           {children}
+          <Toaster position="top-right" richColors closeButton />
         </I18nProvider>
       </body>
     </html>
