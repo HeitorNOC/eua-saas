@@ -21,10 +21,11 @@ export type NavItem = {
     | "nav.workforce"
     | "nav.payments"
     | "nav.reports"
+    | "nav.settings"
   href: string
-  icon: string // agora é string
+  icon: string
   roles?: Role[]
-  permissions?: string[] // permissões necessárias
+  permissions?: string[]
 }
 
 const baseItems: Omit<NavItem, "href">[] = [
@@ -64,6 +65,12 @@ const baseItems: Omit<NavItem, "href">[] = [
     icon: "BarChart3Icon",
     roles: ["owner", "admin", "manager"],
     permissions: ["reports:view"],
+  },
+  {
+    titleKey: "nav.settings",
+    icon: "SettingsIcon",
+    roles: ["owner", "admin"],
+    permissions: ["settings:view"],
   },
 ]
 

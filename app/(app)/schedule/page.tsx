@@ -1,6 +1,11 @@
 import Link from "next/link"
+import { CalendarDaysIcon, PlusIcon } from "lucide-react"
 
-import { PageHeader, PageSection } from "@/components/page/page-header"
+import {
+  PageContainer,
+  PageHeader,
+  PageSection,
+} from "@/components/page/page-container"
 import { createTranslator } from "@/lib/i18n/translator"
 import { SchedulingCalendar } from "@/features/scheduling/calendar"
 import { fetchSchedules } from "@/features/scheduling/queries"
@@ -38,7 +43,9 @@ export default async function SchedulePage() {
 
   const events: ScheduleEvent[] = schedules.map((schedule) => {
     const title = jobMap.get(schedule.jobId) ?? "Evento"
-    const status = ["scheduled", "in_progress", "completed"].includes(schedule.status)
+    const status = ["scheduled", "in_progress", "completed"].includes(
+      schedule.status
+    )
       ? (schedule.status as "scheduled" | "in_progress" | "completed")
       : "scheduled"
 
@@ -46,7 +53,9 @@ export default async function SchedulePage() {
       id: schedule.id,
       title,
       start: new Date(schedule.startTime),
-      end: schedule.endTime ? new Date(schedule.endTime) : new Date(schedule.startTime),
+      end: schedule.endTime
+        ? new Date(schedule.endTime)
+        : new Date(schedule.startTime),
       resource: {
         jobId: schedule.jobId,
         status,
@@ -60,12 +69,19 @@ export default async function SchedulePage() {
 
   return (
     <RequireRole roles={["owner", "admin", "manager", "dispatcher"]}>
-      <div className="space-y-6">
+      <PageContainer>
         <PageHeader
           title={t("nav.schedule")}
-          description="Calendário operacional com drag & drop integrado aos jobs."
+          description="Calendario operacional com drag and drop integrado aos jobs."
+          actions={
+            <Button>
+              <PlusIcon className="mr-2 size-4" />
+              Novo evento
+            </Button>
+          }
         />
-        {error ? (
+
+        {error && (
           <Alert variant="destructive">
             <AlertTitle>Erro do backend</AlertTitle>
             <AlertDescription>
@@ -75,29 +91,42 @@ export default async function SchedulePage() {
               </Button>
             </AlertDescription>
           </Alert>
-        ) : null}
-        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        )}
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_350px]">
           <PageSection>
-            {events.length ? (
-              <SchedulingCalendar locale={locale} events={events} />
+            {events.length > 0 ? (
+              <div className="rounded-lg border bg-card p-4">
+                <SchedulingCalendar locale={locale} events={events} />
+              </div>
             ) : (
               <EmptyState
-                title="Nenhum evento"
-                description="Crie um evento para preencher o calendário."
+                title="Nenhum evento agendado"
+                description="Crie um evento para preencher o calendario."
+                icon={<CalendarDaysIcon className="size-6" />}
+                action={
+                  <Button>
+                    <PlusIcon className="mr-2 size-4" />
+                    Criar evento
+                  </Button>
+                }
               />
             )}
           </PageSection>
+
           <div className="space-y-6">
-            <PageSection title="Próximos eventos">
-              {events.length ? (
+            <PageSection title="Proximos eventos">
+              {upcomingEvents.length > 0 ? (
                 <UpcomingEvents locale={locale} events={upcomingEvents} />
               ) : (
                 <EmptyState
                   title="Sem eventos futuros"
-                  description="Agende um evento para começar."
+                  description="Agende um evento para comecar."
+                  className="py-8"
                 />
               )}
             </PageSection>
+
             <PageSection title="Criar evento">
               <div className="rounded-lg border bg-card p-4">
                 <CreateEventForm />
@@ -105,7 +134,7 @@ export default async function SchedulePage() {
             </PageSection>
           </div>
         </div>
-      </div>
+      </PageContainer>
     </RequireRole>
   )
 }

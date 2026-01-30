@@ -1,3 +1,5 @@
+import { LogOutIcon } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { logoutActionForm } from "@/actions/auth"
 import { getSession } from "@/lib/auth/session"
@@ -12,8 +14,13 @@ export async function LogoutForm() {
   return (
     <form action={logoutActionForm} className="w-full">
       <input type="hidden" name="accessToken" value={session.accessToken} />
-      <Button variant="ghost" className="w-full justify-start">
-        Sair
+      <Button
+        variant="ghost"
+        size="sm"
+        className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
+      >
+        <LogOutIcon className="size-4" />
+        <span>Sair</span>
       </Button>
     </form>
   )

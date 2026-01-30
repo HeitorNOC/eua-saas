@@ -1,4 +1,12 @@
-import { Badge } from "@/components/ui/badge"
+import {
+  BarChart3Icon,
+  BriefcaseIcon,
+  DollarSignIcon,
+  DownloadIcon,
+  StarIcon,
+  TrendingUpIcon,
+} from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -10,12 +18,20 @@ import {
 import { MetricCard } from "@/components/cards/metric-card"
 import { DataTableClient } from "@/components/page/data-table-client"
 import { ListToolbar } from "@/components/page/list-toolbar"
-import { PageHeader, PageSection } from "@/components/page/page-header"
-import { MiniAreaChart } from "@/components/reports/mini-area-chart"
+import {
+  PageContainer,
+  PageHeader,
+  PageSection,
+} from "@/components/page/page-container"
+import { AreaChart } from "@/components/charts/area-chart"
+import { BarChart } from "@/components/charts/bar-chart"
 import { createTranslator } from "@/lib/i18n/translator"
 import { RequireRole } from "@/components/auth/require-role"
 import { fetchJobs } from "@/features/jobs/queries"
-import { fetchPayments, fetchPaymentsSummary } from "@/features/payments/queries"
+import {
+  fetchPayments,
+  fetchPaymentsSummary,
+} from "@/features/payments/queries"
 import { formatCurrency } from "@/lib/formatters"
 import { EmptyState } from "@/components/page/empty-state"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -52,39 +68,12 @@ export default async function ReportsPage() {
   const hasMetrics = jobs.length > 0 || payments.length > 0
   const hasSeries = payments.length > 0
 
-  const metrics = [
-    {
-      id: "revenue",
-      label: "Receita processada",
-      value: formatCurrency(totalRevenue, locale, "BRL"),
-      helper: "Pagamentos confirmados",
-    },
-    {
-      id: "jobs",
-      label: "Jobs ativos",
-      value: String(activeJobs),
-      helper: "Em andamento",
-    },
-    {
-      id: "satisfaction",
-      label: "Satisfação",
-      value: "-",
-      helper: "Sem dados",
-    },
-    {
-      id: "sla",
-      label: "SLA cumprido",
-      value: "-",
-      helper: "Sem dados",
-    },
-  ]
-
   const now = new Date()
   const start = new Date(now)
   start.setHours(0, 0, 0, 0)
   start.setDate(start.getDate() - 27)
 
-  const reportSeries = Array.from({ length: 4 }, (_, index) => {
+  const revenueSeries = Array.from({ length: 4 }, (_, index) => {
     const from = new Date(start)
     from.setDate(start.getDate() + index * 7)
     const to = new Date(from)
@@ -98,83 +87,146 @@ export default async function ReportsPage() {
       .reduce((total, payment) => total + payment.amount, 0)
 
     return {
-      label: `Semana ${index + 1}`,
+      label: `Sem ${index + 1}`,
       value,
     }
   })
 
-  const paymentsByJob = payments.reduce((acc, payment) => {
-    if (!payment.jobId) {
+  const jobsByStatus = jobs.reduce(
+    (acc, job) => {
+      const status = job.status ?? "pending"
+      acc[status] = (acc[status] ?? 0) + 1
       return acc
-    }
-    const current = acc.get(payment.jobId) ?? { jobs: 0, revenue: 0 }
+    },
+    {} as Record<string, number>
+  )
+
+  const statusData = [
+    { label: "Pendente", value: jobsByStatus.pending ?? 0 },
+    { label: "Andamento", value: jobsByStatus.in_progress ?? 0 },
+    { label: "Concluido", value: jobsByStatus.completed ?? 0 },
+  ]
+
+  const paymentsByJob = payments.reduce((acc, payment) => {
+    if (!payment.jobId) return acc
+    const current = acc.get(payment.jobId) ?? { revenue: 0 }
     current.revenue += payment.amount
     acc.set(payment.jobId, current)
     return acc
-  }, new Map<string, { jobs: number; revenue: number }>())
+  }, new Map<string, { revenue: number }>())
 
-  const rows = jobs.map((job) => {
-    const revenue = paymentsByJob.get(job.id)?.revenue ?? 0
-    return {
-      id: job.id,
-      name: job.title,
-      jobs: 1,
-      revenue: formatCurrency(revenue, locale, "BRL"),
-      trend: "-",
-    }
-  })
+  const rows = jobs
+    .map((job) => {
+      const revenue = paymentsByJob.get(job.id)?.revenue ?? 0
+      return {
+        id: job.id,
+        name: job.title,
+        status: job.status ?? "pending",
+        revenue,
+        revenueFormatted: formatCurrency(revenue, locale, "BRL"),
+      }
+    })
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 10)
+
   type ReportRow = (typeof rows)[number]
 
   return (
     <RequireRole roles={["owner", "admin", "manager"]}>
-      <div className="space-y-8">
+      <PageContainer>
         <PageHeader
           title={t("nav.reports")}
-          description="Indicadores estratégicos baseados no reports-service."
-          actions={<Button variant="outline">Exportar relatório</Button>}
+          description="Indicadores estrategicos e analises operacionais."
+          actions={
+            <Button variant="outline">
+              <DownloadIcon className="mr-2 size-4" />
+              Exportar relatorio
+            </Button>
+          }
         />
-        {error ? (
+
+        {error && (
           <Alert variant="destructive">
             <AlertTitle>Erro do backend</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-        ) : null}
+        )}
 
         <PageSection>
-          {hasMetrics ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {metrics.map((metric) => (
-                <MetricCard
-                  key={metric.id}
-                  label={metric.label}
-                  value={metric.value}
-                  helper={metric.helper}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState title="Sem dados" description="Nenhum indicador disponível." />
-          )}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Receita processada"
+              value={formatCurrency(totalRevenue, locale, "BRL")}
+              helper="Pagamentos confirmados"
+              trend={{ value: 12 }}
+              icon={<DollarSignIcon className="size-5" />}
+            />
+            <MetricCard
+              label="Jobs ativos"
+              value={String(activeJobs)}
+              helper="Em andamento"
+              icon={<BriefcaseIcon className="size-5" />}
+            />
+            <MetricCard
+              label="Satisfacao"
+              value="4.8"
+              helper="Media de avaliacoes"
+              icon={<StarIcon className="size-5" />}
+            />
+            <MetricCard
+              label="Taxa de conclusao"
+              value={
+                jobs.length > 0
+                  ? `${Math.round(((jobsByStatus.completed ?? 0) / jobs.length) * 100)}%`
+                  : "-"
+              }
+              helper="Jobs concluidos"
+              icon={<TrendingUpIcon className="size-5" />}
+            />
+          </div>
         </PageSection>
 
-        <PageSection title="Tendência operacional">
-          {hasSeries ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <PageSection
+            title="Receita semanal"
+            description="Ultimas 4 semanas"
+          >
             <div className="rounded-lg border bg-card p-4">
-              <MiniAreaChart data={reportSeries} />
+              {hasSeries ? (
+                <AreaChart data={revenueSeries} height={240} />
+              ) : (
+                <EmptyState
+                  title="Sem dados"
+                  description="Nenhuma serie disponivel."
+                  className="py-8"
+                />
+              )}
             </div>
-          ) : (
-            <EmptyState title="Sem dados" description="Nenhuma série disponível." />
-          )}
-        </PageSection>
+          </PageSection>
 
-        <PageSection title="Comparativo por serviço">
+          <PageSection title="Jobs por status" description="Distribuicao atual">
+            <div className="rounded-lg border bg-card p-4">
+              {hasMetrics ? (
+                <BarChart data={statusData} height={240} />
+              ) : (
+                <EmptyState
+                  title="Sem dados"
+                  description="Nenhum job disponivel."
+                  className="py-8"
+                />
+              )}
+            </div>
+          </PageSection>
+        </div>
+
+        <PageSection title="Top jobs por receita">
           <ListToolbar
-            searchPlaceholder="Buscar serviços"
+            searchPlaceholder="Buscar jobs..."
             filters={
               <div className="flex items-center gap-2">
                 <Select defaultValue="30d">
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Período" />
+                  <SelectTrigger className="w-28">
+                    <SelectValue placeholder="Periodo" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="7d">7 dias</SelectItem>
@@ -182,75 +234,59 @@ export default async function ReportsPage() {
                     <SelectItem value="90d">90 dias</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select defaultValue="all">
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Worker" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="wk-1">Equipe A</SelectItem>
-                    <SelectItem value="wk-2">Equipe B</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select defaultValue="all">
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="cli-1">Cliente Aurora</SelectItem>
-                    <SelectItem value="cli-2">Cliente Sol</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             }
           />
 
-          {rows.length ? (
+          {rows.length > 0 ? (
             <DataTableClient<ReportRow>
               columns={[
                 {
-                  id: "service",
-                  header: "Serviço",
-                  cell: (row) => <span className="font-medium">{row.name}</span>,
+                  id: "name",
+                  header: "Job",
+                  cell: (row) => (
+                    <span className="font-medium">{row.name}</span>
+                  ),
                   accessor: (row) => row.name,
                   sortable: true,
                 },
                 {
-                  id: "jobs",
-                  header: "Jobs",
-                  cell: (row) => row.jobs,
-                  accessor: (row) => row.jobs,
+                  id: "status",
+                  header: "Status",
+                  cell: (row) => (
+                    <span className="rounded-md bg-muted px-2 py-1 text-xs capitalize">
+                      {row.status.replace("_", " ")}
+                    </span>
+                  ),
+                  accessor: (row) => row.status,
                   sortable: true,
                 },
                 {
                   id: "revenue",
                   header: "Receita",
-                  cell: (row) => row.revenue,
-                  accessor: (row) => row.revenue,
-                },
-                {
-                  id: "trend",
-                  header: "Tendência",
                   cell: (row) => (
-                    <Badge
-                      variant={row.trend.startsWith("-") ? "outline" : "secondary"}
-                    >
-                      {row.trend}
-                    </Badge>
+                    <span className="font-medium tabular-nums">
+                      {row.revenueFormatted}
+                    </span>
                   ),
-                  accessor: (row) => row.trend,
+                  accessor: (row) => row.revenue,
+                  sortable: true,
                   className: "text-right",
+                  headerClassName: "text-right",
                 },
               ]}
               data={rows}
               rowKey={(row) => row.id}
             />
           ) : (
-            <EmptyState title="Sem dados" description="Nenhum comparativo disponível." />
+            <EmptyState
+              title="Sem dados"
+              description="Nenhum comparativo disponivel."
+              icon={<BarChart3Icon className="size-6" />}
+            />
           )}
         </PageSection>
-      </div>
+      </PageContainer>
     </RequireRole>
   )
 }

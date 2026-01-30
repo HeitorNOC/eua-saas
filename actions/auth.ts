@@ -6,25 +6,28 @@ import { loginSchema, registerSchema } from "@/features/auth/schemas"
 import { setAuthCookies, clearAuthCookies } from "@/lib/auth/cookies"
 import { loginWithCredentials, registerWithCredentials, logout as serviceLogout } from "@/lib/auth/service"
 
-export type ActionResult = { error: string | null }
+export type ActionResult = { error: string | null; success: boolean }
+
 export async function loginAction(_prevState: unknown, formData: FormData): Promise<ActionResult> {
-  const payload = loginSchema.parse({
-    email: String(formData.get("email") ?? ""),
-    password: String(formData.get("password") ?? ""),
-  })
   await cookies()
+  
   try {
+    const payload = loginSchema.parse({
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+    })
     const response = await loginWithCredentials(payload)
     await setAuthCookies(response.tokens)
-    return { error: null }
+    return { error: null, success: true }
   } catch (err: any) {
-    const message = err && err.message ? err.message : "Erro ao autenticar. Verifique suas credenciais."
-    return { error: message }
+    const message = err?.message || "Erro ao autenticar. Verifique suas credenciais."
+    return { error: message, success: false }
   }
 }
 
 export async function registerAction(_prevState: unknown, formData: FormData): Promise<ActionResult> {
   await cookies()
+  
   try {
     const payload = registerSchema.parse({
       firstName: String(formData.get("firstName") ?? ""),
@@ -34,10 +37,10 @@ export async function registerAction(_prevState: unknown, formData: FormData): P
     })
     const response = await registerWithCredentials(payload)
     await setAuthCookies(response.tokens)
-    return { error: null }
+    return { error: null, success: true }
   } catch (err: any) {
-    const message = err && err.message ? err.message : "Erro ao criar conta."
-    return { error: message }
+    const message = err?.message || "Erro ao criar conta."
+    return { error: message, success: false }
   }
 }
 
@@ -47,6 +50,7 @@ export const registerActionForm = async (formData: FormData): Promise<void> => {
 
 export async function logoutAction(_prevState: unknown, formData: FormData): Promise<ActionResult> {
   await cookies()
+  
   try {
     const accessToken = formData.get("accessToken")
     if (typeof accessToken === "string" && accessToken.length > 0) {
@@ -57,10 +61,10 @@ export async function logoutAction(_prevState: unknown, formData: FormData): Pro
       }
     }
     await clearAuthCookies()
-    return { error: null }
+    return { error: null, success: true }
   } catch (err: any) {
-    const message = err && err.message ? err.message : "Erro ao deslogar."
-    return { error: message }
+    const message = err?.message || "Erro ao deslogar."
+    return { error: message, success: false }
   }
 }
 
