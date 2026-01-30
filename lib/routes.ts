@@ -8,6 +8,7 @@ export const routes = {
   schedule: "/schedule",
   workforce: "/workforce",
   reports: "/reports",
+  settings: "/settings",
   clientDetail: (id: string) => `/clients/${id}`,
   clientEdit: (id: string) => `/clients/${id}/edit`,
   clientNew: () => "/clients/new",
