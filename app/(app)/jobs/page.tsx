@@ -1,31 +1,39 @@
 import Link from "next/link"
+import { ClipboardListIcon, PlusIcon } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DataTableClient } from "@/components/page/data-table-client"
 import { ListToolbar } from "@/components/page/list-toolbar"
 import { EmptyState } from "@/components/page/empty-state"
-import { PageHeader, PageSection } from "@/components/page/page-header"
+import {
+  PageContainer,
+  PageHeader,
+  PageSection,
+} from "@/components/page/page-container"
+import { Pagination } from "@/components/page/pagination"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { createTranslator } from "@/lib/i18n/translator"
 import { fetchJobs, fetchJobsCount } from "@/features/jobs/queries"
-import { CreateJobForm } from "@/features/jobs/create-job-form"
 import type { Job } from "@/features/jobs/schemas"
 import { formatDate } from "@/lib/formatters"
 import { RequireRole } from "@/components/auth/require-role"
-import { ApiError } from "@/lib/api/error"
 import { routes } from "@/lib/routes"
 import { getLocaleFromCookies } from "@/lib/i18n/locale"
 
+const statusLabels: Record<string, string> = {
+  pending: "Pendente",
+  in_progress: "Em andamento",
+  completed: "Concluido",
+  cancelled: "Cancelado",
+}
+
 export default async function JobsPage(props: {
-  searchParams?: { page?: string; pageSize?: string }
+  searchParams?: Promise<{ page?: string; pageSize?: string }>
 }) {
-  // searchParams pode ser Promise em server components
-  const rawParams = props.searchParams && typeof (props.searchParams as any).then === "function"
-    ? await props.searchParams
-    : props.searchParams
-  const page = Math.max(1, Number(rawParams?.page ?? 1))
-  const pageSize = Math.min(50, Math.max(5, Number(rawParams?.pageSize ?? 10)))
+  const params = await props.searchParams
+  const page = Math.max(1, Number(params?.page ?? 1))
+  const pageSize = Math.min(50, Math.max(5, Number(params?.pageSize ?? 10)))
   const offset = (page - 1) * pageSize
 
   const locale = await getLocaleFromCookies()
@@ -40,21 +48,25 @@ export default async function JobsPage(props: {
       fetchJobs(pageSize, offset),
       fetchJobsCount(),
     ])
-  } catch (err) {
+  } catch {
     error = "Erro interno do sistema. Tente novamente mais tarde."
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const prevPage = Math.max(1, page - 1)
-  const nextPage = Math.min(totalPages, page + 1)
+
   const columns = [
     {
       id: "job",
       header: "Job",
       cell: (row: Job) => (
-        <div>
-          <div className="font-medium">{row.title}</div>
-          <div className="text-muted-foreground text-xs">{row.clientId}</div>
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <ClipboardListIcon className="size-4 text-muted-foreground" />
+          </div>
+          <div>
+            <div className="font-medium">{row.title}</div>
+            <div className="text-muted-foreground text-xs">ID: {row.id.slice(0, 8)}</div>
+          </div>
         </div>
       ),
       accessor: (row: Job) => row.title,
@@ -63,11 +75,14 @@ export default async function JobsPage(props: {
     {
       id: "status",
       header: "Status",
-      cell: (row: Job) => (
-        <Badge variant={row.status === "completed" ? "secondary" : "outline"}>
-          {row.status ?? "-"}
-        </Badge>
-      ),
+      cell: (row: Job) => {
+        const status = row.status ?? "pending"
+        return (
+          <StatusBadge status={status as keyof typeof statusLabels}>
+            {statusLabels[status] ?? status}
+          </StatusBadge>
+        )
+      },
       accessor: (row: Job) => row.status ?? "",
       sortable: true,
     },
@@ -75,16 +90,22 @@ export default async function JobsPage(props: {
       id: "created",
       header: "Criado em",
       cell: (row: Job) =>
-        row.createdAt ? formatDate(row.createdAt, locale) : "-",
+        row.createdAt ? (
+          <span className="text-muted-foreground text-sm">
+            {formatDate(row.createdAt, locale)}
+          </span>
+        ) : (
+          "-"
+        ),
       accessor: (row: Job) => row.createdAt ?? "",
       sortable: true,
     },
     {
       id: "actions",
-      header: "Ações",
+      header: "",
       cell: (row: Job) => (
         <Button asChild variant="ghost" size="sm">
-          <Link href={routes.jobDetail(row.id)}>Ver</Link>
+          <Link href={routes.jobDetail(row.id)}>Ver detalhes</Link>
         </Button>
       ),
       className: "text-right",
@@ -94,7 +115,20 @@ export default async function JobsPage(props: {
 
   return (
     <RequireRole roles={["owner", "admin", "manager", "dispatcher"]}>
-      <div className="space-y-6">
+      <PageContainer>
+        <PageHeader
+          title={t("jobs.title")}
+          description={t("jobs.subtitle")}
+          actions={
+            <Button asChild>
+              <Link href={routes.jobNew()}>
+                <PlusIcon className="mr-2 size-4" />
+                {t("jobs.create")}
+              </Link>
+            </Button>
+          }
+        />
+
         {error && (
           <Alert variant="destructive">
             <AlertTitle>Erro</AlertTitle>
@@ -108,60 +142,38 @@ export default async function JobsPage(props: {
             </AlertDescription>
           </Alert>
         )}
-        <PageHeader
-          title={t("jobs.title")}
-          description={t("jobs.subtitle")}
-          actions={
-            <Button asChild>
-              <Link href={routes.jobNew()}>{t("jobs.create")}</Link>
-            </Button>
-          }
-        />
-        <ListToolbar searchPlaceholder="Buscar jobs" />
-        {jobs.length ? (
-          <DataTableClient columns={columns} data={jobs} rowKey={(row) => row.id} />
-        ) : (
-          <EmptyState
-            title="Nenhum job encontrado"
-            description="Crie o primeiro job para começar a operar."
-          />
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-muted-foreground text-sm">
-            Página {page} de {totalPages}
-          </div>
-          <div className="flex items-center gap-2">
-            {page <= 1 ? (
-              <Button variant="outline" size="sm" disabled>
-                Anterior
-              </Button>
-            ) : (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`${routes.jobs}?page=${prevPage}&pageSize=${pageSize}`}>
-                  Anterior
-                </Link>
-              </Button>
-            )}
-            {page >= totalPages ? (
-              <Button variant="outline" size="sm" disabled>
-                Próxima
-              </Button>
-            ) : (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`${routes.jobs}?page=${nextPage}&pageSize=${pageSize}`}>
-                  Próxima
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
 
-        <PageSection title="Criar job" description="Ação via Server Action">
-          <div className="rounded-lg border bg-card p-4">
-            <CreateJobForm />
-          </div>
+        <PageSection>
+          <ListToolbar searchPlaceholder="Buscar jobs por titulo ou ID..." />
+
+          {jobs.length > 0 ? (
+            <>
+              <DataTableClient
+                columns={columns}
+                data={jobs}
+                rowKey={(row) => row.id}
+              />
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                baseUrl={routes.jobs}
+                pageSize={pageSize}
+              />
+            </>
+          ) : (
+            <EmptyState
+              title="Nenhum job encontrado"
+              description="Crie o primeiro job para comecar a operar."
+              icon={<ClipboardListIcon className="size-6" />}
+              action={
+                <Button asChild>
+                  <Link href={routes.jobNew()}>{t("jobs.create")}</Link>
+                </Button>
+              }
+            />
+          )}
         </PageSection>
-      </div>
+      </PageContainer>
     </RequireRole>
   )
 }

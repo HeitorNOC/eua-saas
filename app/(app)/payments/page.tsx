@@ -1,10 +1,17 @@
 import Link from "next/link"
+import { PlusIcon, WalletCardsIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { DataTableClient } from "@/components/page/data-table-client"
 import { EmptyState } from "@/components/page/empty-state"
 import { ListToolbar } from "@/components/page/list-toolbar"
-import { PageHeader } from "@/components/page/page-header"
+import {
+  PageContainer,
+  PageHeader,
+  PageSection,
+} from "@/components/page/page-container"
+import { Pagination } from "@/components/page/pagination"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { createTranslator } from "@/lib/i18n/translator"
 import { RequireRole } from "@/components/auth/require-role"
@@ -28,15 +35,23 @@ import {
 import { routes } from "@/lib/routes"
 import { getLocaleFromCookies } from "@/lib/i18n/locale"
 
+const statusLabels: Record<string, string> = {
+  pending: "Pendente",
+  paid: "Pago",
+  failed: "Falhou",
+  refunded: "Reembolsado",
+}
+
 export default async function PaymentsPage({
   searchParams,
 }: {
-  searchParams?: { page?: string; pageSize?: string }
+  searchParams?: Promise<{ page?: string; pageSize?: string }>
 }) {
   const locale = await getLocaleFromCookies()
   const { t } = createTranslator(locale)
-  const page = Math.max(1, Number(searchParams?.page ?? 1))
-  const pageSize = Math.min(50, Math.max(5, Number(searchParams?.pageSize ?? 10)))
+  const params = await searchParams
+  const page = Math.max(1, Number(params?.page ?? 1))
+  const pageSize = Math.min(50, Math.max(5, Number(params?.pageSize ?? 10)))
   const offset = (page - 1) * pageSize
 
   let data: Payment[] = []
@@ -68,45 +83,61 @@ export default async function PaymentsPage({
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const prevPage = Math.max(1, page - 1)
-  const nextPage = Math.min(totalPages, page + 1)
+
   const columns = [
     {
       id: "job",
       header: "Job",
-      cell: (row: (typeof data)[number]) => jobMap.get(row.jobId ?? "") ?? "Job",
-      accessor: (row: (typeof data)[number]) => jobMap.get(row.jobId ?? "") ?? "Job",
+      cell: (row: Payment) => (
+        <div className="font-medium">
+          {jobMap.get(row.jobId ?? "") ?? "Job desconhecido"}
+        </div>
+      ),
+      accessor: (row: Payment) => jobMap.get(row.jobId ?? "") ?? "",
       sortable: true,
     },
     {
       id: "status",
       header: "Status",
-      cell: (row: (typeof data)[number]) => row.status,
-      accessor: (row: (typeof data)[number]) => row.status,
+      cell: (row: Payment) => {
+        const status = row.status ?? "pending"
+        return (
+          <StatusBadge status={status as "pending" | "paid" | "failed"}>
+            {statusLabels[status] ?? status}
+          </StatusBadge>
+        )
+      },
+      accessor: (row: Payment) => row.status,
       sortable: true,
     },
     {
       id: "amount",
       header: "Valor",
-      cell: (row: (typeof data)[number]) =>
-        formatCurrency(row.amount, locale, row.currency),
-      accessor: (row: (typeof data)[number]) => row.amount,
+      cell: (row: Payment) => (
+        <span className="font-medium tabular-nums">
+          {formatCurrency(row.amount, locale, row.currency)}
+        </span>
+      ),
+      accessor: (row: Payment) => row.amount,
       sortable: true,
     },
     {
       id: "createdAt",
-      header: "Criado em",
-      cell: (row: (typeof data)[number]) =>
-        formatDate(row.createdAt, locale),
-      accessor: (row: (typeof data)[number]) => row.createdAt,
+      header: "Data",
+      cell: (row: Payment) => (
+        <span className="text-muted-foreground text-sm">
+          {formatDate(row.createdAt, locale)}
+        </span>
+      ),
+      accessor: (row: Payment) => row.createdAt,
       sortable: true,
     },
     {
       id: "actions",
-      header: "Ações",
-      cell: (row: (typeof data)[number]) => (
+      header: "",
+      cell: (row: Payment) => (
         <Button asChild variant="ghost" size="sm">
-          <Link href={routes.paymentDetail(row.id)}>Ver</Link>
+          <Link href={routes.paymentDetail(row.id)}>Ver detalhes</Link>
         </Button>
       ),
       className: "text-right",
@@ -116,103 +147,105 @@ export default async function PaymentsPage({
 
   return (
     <RequireRole roles={["owner", "admin", "finance"]}>
-      <div className="space-y-6">
+      <PageContainer>
         <PageHeader
           title={t("nav.payments")}
-          description="Controle de faturamento e recebíveis."
+          description="Controle de faturamento e recebiveis."
           actions={
             <Button asChild>
-              <Link href={routes.paymentNew()}>Novo pagamento</Link>
+              <Link href={routes.paymentNew()}>
+                <PlusIcon className="mr-2 size-4" />
+                Novo pagamento
+              </Link>
             </Button>
           }
         />
-        {error ? (
+
+        {error && (
           <Alert variant="destructive">
             <AlertTitle>Erro do backend</AlertTitle>
             <AlertDescription>
               {error}
               <Button asChild variant="outline" size="sm" className="mt-3">
-                <Link href={`${routes.payments}?page=${page}&pageSize=${pageSize}`}>
+                <Link
+                  href={`${routes.payments}?page=${page}&pageSize=${pageSize}`}
+                >
                   Tentar novamente
                 </Link>
               </Button>
             </AlertDescription>
           </Alert>
-        ) : null}
-        <PaymentSummary
-          locale={locale}
-          total={summary.totalProcessed}
-          pending={summary.totalPending}
-          paid={summary.totalSucceeded}
-          failed={summary.totalFailed}
-        />
-        <ListToolbar
-          searchPlaceholder="Buscar pagamentos"
-          filters={
-            <div className="flex items-center gap-2">
-              <Select defaultValue="all">
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="pending">Pendente</SelectItem>
-                  <SelectItem value="paid">Pago</SelectItem>
-                  <SelectItem value="failed">Falhou</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select defaultValue="all">
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="7d">7 dias</SelectItem>
-                  <SelectItem value="30d">30 dias</SelectItem>
-                  <SelectItem value="90d">90 dias</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          }
-        />
-        {data.length ? (
-          <DataTableClient columns={columns} data={data} rowKey={(row) => row.id} />
-        ) : (
-          <EmptyState
-            title="Sem pagamentos recentes"
-            description="Conecte o payments-service para acompanhar entradas e saídas."
-          />
         )}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-muted-foreground text-sm">
-            Página {page} de {totalPages}
-          </div>
-          <div className="flex items-center gap-2">
-            {page <= 1 ? (
-              <Button variant="outline" size="sm" disabled>
-                Anterior
-              </Button>
-            ) : (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`${routes.payments}?page=${prevPage}&pageSize=${pageSize}`}>
-                  Anterior
-                </Link>
-              </Button>
-            )}
-            {page >= totalPages ? (
-              <Button variant="outline" size="sm" disabled>
-                Próxima
-              </Button>
-            ) : (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`${routes.payments}?page=${nextPage}&pageSize=${pageSize}`}>
-                  Próxima
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
+
+        <PageSection>
+          <PaymentSummary
+            locale={locale}
+            total={summary.totalProcessed}
+            pending={summary.totalPending}
+            paid={summary.totalSucceeded}
+            failed={summary.totalFailed}
+          />
+        </PageSection>
+
+        <PageSection>
+          <ListToolbar
+            searchPlaceholder="Buscar pagamentos..."
+            filters={
+              <div className="flex items-center gap-2">
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="paid">Pago</SelectItem>
+                    <SelectItem value="failed">Falhou</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select defaultValue="30d">
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Periodo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7d">7 dias</SelectItem>
+                    <SelectItem value="30d">30 dias</SelectItem>
+                    <SelectItem value="90d">90 dias</SelectItem>
+                    <SelectItem value="all">Todos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            }
+          />
+
+          {data.length > 0 ? (
+            <>
+              <DataTableClient
+                columns={columns}
+                data={data}
+                rowKey={(row) => row.id}
+              />
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                baseUrl={routes.payments}
+                pageSize={pageSize}
+              />
+            </>
+          ) : (
+            <EmptyState
+              title="Sem pagamentos recentes"
+              description="Conecte o payments-service para acompanhar entradas e saidas."
+              icon={<WalletCardsIcon className="size-6" />}
+              action={
+                <Button asChild>
+                  <Link href={routes.paymentNew()}>Novo pagamento</Link>
+                </Button>
+              }
+            />
+          )}
+        </PageSection>
+      </PageContainer>
     </RequireRole>
   )
 }
