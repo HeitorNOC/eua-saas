@@ -1,100 +1,49 @@
 "use client"
 
-import {
-  Bar,
-  BarChart as RechartsBarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts"
-
 import { cn } from "@/lib/utils"
 
 export type BarChartProps = {
-  data: Array<{ label: string; value: number; [key: string]: unknown }>
+  data: Array<{ label: string; value: number }>
   className?: string
   height?: number
-  showGrid?: boolean
-  showXAxis?: boolean
-  showYAxis?: boolean
-  color?: string
-  radius?: number
 }
 
-export function BarChart({
-  data,
-  className,
-  height = 200,
-  showGrid = true,
-  showXAxis = true,
-  showYAxis = false,
-  color = "#171717",
-  radius = 4,
-}: BarChartProps) {
+export function BarChart({ data, className, height = 200 }: BarChartProps) {
+  if (!data.length) return null
+
+  const maxValue = Math.max(...data.map((d) => d.value))
+
   return (
-    <div className={cn("w-full", className)}>
-      <ResponsiveContainer width="100%" height={height}>
-        <RechartsBarChart
-          data={data}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        >
-          {showGrid && (
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="currentColor"
-              className="text-border"
-              vertical={false}
-            />
-          )}
-          {showXAxis && (
-            <XAxis
-              dataKey="label"
-              stroke="currentColor"
-              className="text-muted-foreground"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-            />
-          )}
-          {showYAxis && (
-            <YAxis
-              stroke="currentColor"
-              className="text-muted-foreground"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-            />
-          )}
-          <Tooltip
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) return null
-              const item = payload[0]
-              return (
-                <div className="rounded-lg border bg-card px-3 py-2 shadow-sm">
-                  <p className="text-xs text-muted-foreground">
-                    {item.payload.label}
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {typeof item.value === "number"
-                      ? item.value.toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        })
-                      : item.value}
-                  </p>
-                </div>
-              )
-            }}
-          />
-          <Bar
-            dataKey="value"
-            fill={color}
-            radius={[radius, radius, 0, 0]}
-          />
-        </RechartsBarChart>
-      </ResponsiveContainer>
+    <div className={cn("flex flex-col", className)} style={{ height }}>
+      <div className="flex flex-1 items-end gap-2">
+        {data.map((item, i) => {
+          const percentage = maxValue > 0 ? (item.value / maxValue) * 100 : 0
+          return (
+            <div key={i} className="group relative flex flex-1 flex-col items-center">
+              {/* Tooltip on hover */}
+              <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 rounded-md border bg-card px-2 py-1 text-xs shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
+                <span className="font-medium">{item.value}</span>
+              </div>
+              {/* Bar */}
+              <div
+                className="w-full max-w-12 rounded-t-md bg-foreground/80 transition-all group-hover:bg-foreground"
+                style={{ height: `${percentage}%`, minHeight: item.value > 0 ? 4 : 0 }}
+              />
+            </div>
+          )
+        })}
+      </div>
+      {/* Labels */}
+      <div className="mt-3 flex gap-2">
+        {data.map((item, i) => (
+          <div
+            key={i}
+            className="flex-1 truncate text-center text-xs text-muted-foreground"
+          >
+            {item.label}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

@@ -11,7 +11,6 @@ export default async function AppLayout({
   children: ReactNode
 }) {
   const session = await getSession()
-  console.log('session: ', session)
 
   if (!session) {
     redirect(routes.login)

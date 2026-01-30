@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useActionState } from "react"
+import { useEffect, useActionState, useRef } from "react"
 import { useRouter } from "next/navigation"
 
 import { AuthForm } from "@/components/auth/auth-form"
@@ -11,13 +11,21 @@ import { loginAction } from "@/actions/auth"
 
 export default function LoginPage() {
   const router = useRouter()
-  const [state, formAction] = useActionState(loginAction, { error: null })
+  const [state, formAction] = useActionState(loginAction, { error: null, success: false })
+  const hasSubmitted = useRef(false)
 
   useEffect(() => {
-    if (state && !state.error) {
+    // Apenas redireciona se o form foi submetido com sucesso
+    if (state?.success && hasSubmitted.current) {
       router.push(routes.dashboard)
+      router.refresh()
     }
   }, [state, router])
+
+  const handleAction = (formData: FormData) => {
+    hasSubmitted.current = true
+    formAction(formData)
+  }
 
   return (
     <div className="space-y-6">
@@ -31,7 +39,7 @@ export default function LoginPage() {
       </div>
 
       <AuthForm
-        action={formAction}
+        action={handleAction}
         submitLabel="Entrar"
         error={state?.error}
       >
