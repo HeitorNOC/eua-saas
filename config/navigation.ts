@@ -3,6 +3,7 @@ import {
   BarChart3Icon,
   CalendarDaysIcon,
   ClipboardListIcon,
+  FileTextIcon,
   LayoutDashboardIcon,
   UsersIcon,
   WalletCardsIcon,
@@ -16,6 +17,7 @@ export type NavItem = {
   titleKey:
     | "nav.dashboard"
     | "nav.jobs"
+    | "nav.estimates"
     | "nav.schedule"
     | "nav.clients"
     | "nav.workforce"
@@ -35,6 +37,12 @@ const baseItems: Omit<NavItem, "href">[] = [
     icon: "ClipboardListIcon",
     roles: ["owner", "admin", "manager", "dispatcher"],
     permissions: ["jobs:view"],
+  },
+  {
+    titleKey: "nav.estimates",
+    icon: "FileTextIcon",
+    roles: ["owner", "admin", "manager"],
+    permissions: ["estimates:view"],
   },
   {
     titleKey: "nav.schedule",

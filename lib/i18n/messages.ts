@@ -4,6 +4,7 @@ export const messages = {
   "pt-BR": {
     "nav.dashboard": "Dashboard",
     "nav.jobs": "Jobs",
+    "nav.estimates": "Orcamentos",
     "nav.schedule": "Agenda",
     "nav.clients": "Clientes",
     "nav.workforce": "Equipe",
@@ -42,6 +43,7 @@ export const messages = {
   "en-US": {
     "nav.dashboard": "Dashboard",
     "nav.jobs": "Jobs",
+    "nav.estimates": "Estimates",
     "nav.schedule": "Schedule",
     "nav.clients": "Clients",
     "nav.workforce": "Workforce",
@@ -80,6 +82,7 @@ export const messages = {
   "es-ES": {
     "nav.dashboard": "Panel",
     "nav.jobs": "Trabajos",
+    "nav.estimates": "Presupuestos",
     "nav.schedule": "Agenda",
     "nav.clients": "Clientes",
     "nav.workforce": "Equipo",
