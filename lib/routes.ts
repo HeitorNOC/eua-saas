@@ -1,6 +1,14 @@
 export const routes = {
+  // Public
+  home: "/",
   login: "/login",
   register: "/register",
+  // Onboarding
+  onboarding: "/onboarding",
+  onboardingBusinessType: "/onboarding/business-type",
+  onboardingSubscription: "/onboarding/subscription",
+  onboardingSetup: "/onboarding/setup",
+  // App
   dashboard: "/dashboard",
   clients: "/clients",
   jobs: "/jobs",
@@ -9,6 +17,7 @@ export const routes = {
   workforce: "/workforce",
   reports: "/reports",
   settings: "/settings",
+  estimates: "/estimates",
   clientDetail: (id: string) => `/clients/${id}`,
   clientEdit: (id: string) => `/clients/${id}/edit`,
   clientNew: () => "/clients/new",
@@ -23,4 +32,7 @@ export const routes = {
   workforceDetail: (id: string) => `/workforce/${id}`,
   workforceEdit: (id: string) => `/workforce/${id}/edit`,
   workforceNew: () => "/workforce/new",
+  estimateDetail: (id: string) => `/estimates/${id}`,
+  estimateEdit: (id: string) => `/estimates/${id}/edit`,
+  estimateNew: (jobId?: string) => jobId ? `/estimates/new?jobId=${jobId}` : "/estimates/new",
 }
