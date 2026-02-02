@@ -28,9 +28,16 @@ function resolveLocale(request: NextRequest) {
   return siteConfig.defaultLocale
 }
 
+// Rotas publicas que nao precisam de autenticacao
+const publicRoutes = ["/login", "/register", "/"]
+
+// Rotas de onboarding (precisam de auth mas nao de subscription)
+const onboardingRoutes = ["/onboarding", "/onboarding/business-type", "/onboarding/subscription", "/onboarding/setup"]
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // 1. Handle locale in path (redirect and set cookie)
   const localeInPath = siteConfig.locales.find((locale) =>
     pathname.startsWith(`/${locale}`)
   )
@@ -45,32 +52,52 @@ export function proxy(request: NextRequest) {
     return response
   }
 
-  const isMissingLocale = siteConfig.locales.every(
-    (locale) => !pathname.startsWith(`/${locale}`)
-  )
+  // 2. Set locale cookie if missing
+  const locale = resolveLocale(request)
+  
+  // 3. Check authentication
+  const accessToken = request.cookies.get("access_token")?.value
+  const subscriptionActive = request.cookies.get("subscription_active")?.value === "true"
+  const isAuthenticated = !!accessToken
+  const isAuthRoute = pathname === routes.login || pathname === routes.register
+  const isPublicRoute = publicRoutes.includes(pathname)
+  const isOnboardingRoute = onboardingRoutes.some(route => pathname.startsWith(route))
 
-  if (isMissingLocale) {
-    const locale = resolveLocale(request)
-    const response = NextResponse.next()
-    response.cookies.set(localeCookie, locale, {
-      path: "/",
-      sameSite: "lax",
-    })
+  // Authenticated user trying to access auth routes -> redirect based on subscription
+  if (isAuthenticated && isAuthRoute) {
+    const redirectUrl = subscriptionActive ? routes.dashboard : routes.onboarding
+    const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+    response.cookies.set(localeCookie, locale, { path: "/", sameSite: "lax" })
     return response
   }
 
-  const isAuthRoute = pathname.startsWith(routes.login) || pathname.startsWith(routes.register)
-  const accessToken = request.cookies.get("access_token")?.value
-
-  if (isAuthRoute && accessToken) {
-    return NextResponse.redirect(new URL(routes.dashboard, request.url))
+  // Authenticated user without subscription trying to access app routes -> redirect to onboarding
+  if (isAuthenticated && !subscriptionActive && !isPublicRoute && !isOnboardingRoute) {
+    const response = NextResponse.redirect(new URL(routes.onboarding, request.url))
+    response.cookies.set(localeCookie, locale, { path: "/", sameSite: "lax" })
+    return response
   }
 
-  if (!isAuthRoute && !accessToken) {
-    return NextResponse.redirect(new URL(routes.login, request.url))
+  // Authenticated user with subscription trying to access onboarding -> redirect to dashboard
+  if (isAuthenticated && subscriptionActive && isOnboardingRoute) {
+    const response = NextResponse.redirect(new URL(routes.dashboard, request.url))
+    response.cookies.set(localeCookie, locale, { path: "/", sameSite: "lax" })
+    return response
   }
 
-  return NextResponse.next()
+  // Unauthenticated user trying to access protected routes -> redirect to login
+  if (!isAuthenticated && !isPublicRoute && !isOnboardingRoute) {
+    const loginUrl = new URL(routes.login, request.url)
+    loginUrl.searchParams.set("callbackUrl", pathname)
+    const response = NextResponse.redirect(loginUrl)
+    response.cookies.set(localeCookie, locale, { path: "/", sameSite: "lax" })
+    return response
+  }
+
+  // Allow request to proceed
+  const response = NextResponse.next()
+  response.cookies.set(localeCookie, locale, { path: "/", sameSite: "lax" })
+  return response
 }
 
 export const config = {
