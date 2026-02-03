@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useActionState, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 import { AuthForm } from "@/components/auth/auth-form"
 import { FormField } from "@/components/auth/form-field"
@@ -12,6 +12,8 @@ import { useActionToast } from "@/hooks/use-action-toast"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get("callbackUrl")
   const [state, formAction] = useActionState(loginAction, { error: null, success: false })
   const hasSubmitted = useRef(false)
 
@@ -24,10 +26,14 @@ export default function LoginPage() {
   useEffect(() => {
     // Apenas redireciona se o form foi submetido com sucesso
     if (state?.success && hasSubmitted.current) {
-      router.push(routes.dashboard)
+      // Usar callback URL se disponivel, senao ir para dashboard
+      const redirectTo = callbackUrl && callbackUrl.startsWith("/") 
+        ? callbackUrl 
+        : routes.dashboard
+      router.push(redirectTo)
       router.refresh()
     }
-  }, [state, router])
+  }, [state, router, callbackUrl])
 
   const handleAction = (formData: FormData) => {
     hasSubmitted.current = true
@@ -93,4 +99,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
