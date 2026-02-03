@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { CheckIcon, ArrowRightIcon, BuildingIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { routes } from "@/lib/routes"
+import { completeOnboardingAction } from "@/actions/onboarding"
 
 const languages = [
   { value: "pt-BR", label: "Portugues (Brasil)" },
@@ -25,37 +26,41 @@ const languages = [
 const currencies = [
   { value: "BRL", label: "Real (R$)" },
   { value: "USD", label: "Dollar ($)" },
-  { value: "EUR", label: "Euro (" },
+  { value: "EUR", label: "Euro (E)" },
 ]
 
 export default function SetupPage() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     companyName: "",
     language: "pt-BR",
     currency: "BRL",
   })
 
-  const handleComplete = async () => {
-    if (!formData.companyName.trim()) return
+  const handleComplete = () => {
+    if (!formData.companyName.trim()) {
+      setError("Nome da empresa e obrigatorio")
+      return
+    }
 
-    setIsLoading(true)
-
-    // Simula salvamento no backend
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Define cookies de configuracao
-    document.cookie = `subscription_active=true; path=/; max-age=${60 * 60 * 24 * 365}`
-    document.cookie = `locale=${formData.language}; path=/; max-age=${60 * 60 * 24 * 365}`
-
-    // Limpa localStorage do onboarding
-    localStorage.removeItem("onboarding_business_type")
-    localStorage.removeItem("onboarding_subscription")
-
-    // Redireciona para dashboard
-    router.push(routes.dashboard)
-    router.refresh()
+    setError(null)
+    startTransition(async () => {
+      const data = new FormData()
+      data.append("companyName", formData.companyName)
+      data.append("language", formData.language)
+      data.append("currency", formData.currency)
+      
+      const result = await completeOnboardingAction({ success: false, error: null }, data)
+      
+      if (result.success) {
+        router.push(routes.dashboard)
+        router.refresh()
+      } else {
+        setError(result.error)
+      }
+    })
   }
 
   return (
@@ -81,6 +86,13 @@ export default function SetupPage() {
         </p>
       </div>
 
+      {/* Error message */}
+      {error && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
       {/* Form */}
       <div className="space-y-6">
         <div className="space-y-2">
@@ -90,6 +102,7 @@ export default function SetupPage() {
             placeholder="Ex: Silva Construcoes"
             value={formData.companyName}
             onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
+            disabled={isPending}
           />
         </div>
 
@@ -99,6 +112,7 @@ export default function SetupPage() {
             <Select
               value={formData.language}
               onValueChange={(value) => setFormData(prev => ({ ...prev, language: value }))}
+              disabled={isPending}
             >
               <SelectTrigger id="language">
                 <SelectValue />
@@ -118,6 +132,7 @@ export default function SetupPage() {
             <Select
               value={formData.currency}
               onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
+              disabled={isPending}
             >
               <SelectTrigger id="currency">
                 <SelectValue />
@@ -142,10 +157,10 @@ export default function SetupPage() {
           </div>
           <div>
             <h4 className="text-sm font-medium text-green-900 dark:text-green-100">
-              Assinatura ativa
+              Plano selecionado
             </h4>
             <p className="text-xs text-green-700 dark:text-green-300">
-              Sua conta esta pronta para uso.
+              Sua conta sera ativada assim que finalizar a configuracao.
             </p>
           </div>
         </div>
@@ -154,11 +169,11 @@ export default function SetupPage() {
       {/* Complete Button */}
       <Button
         onClick={handleComplete}
-        disabled={isLoading || !formData.companyName.trim()}
+        disabled={isPending || !formData.companyName.trim()}
         className="w-full"
         size="lg"
       >
-        {isLoading ? (
+        {isPending ? (
           <>
             <div className="mr-2 size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
             Finalizando...

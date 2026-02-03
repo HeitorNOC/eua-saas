@@ -22,7 +22,7 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
 
       {/* Footer */}
       <footer className="border-t py-4 text-center text-sm text-muted-foreground">
-        2024 Field Services. Todos os direitos reservados.
+        {new Date().getFullYear()} Field Services. Todos os direitos reservados.
       </footer>
     </div>
   )

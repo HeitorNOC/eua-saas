@@ -68,6 +68,7 @@ export function PageHeader({
 }
 
 export type PageSectionProps = {
+  id?: string
   title?: string
   description?: string
   actions?: ReactNode
@@ -76,6 +77,7 @@ export type PageSectionProps = {
 }
 
 export function PageSection({
+  id,
   title,
   description,
   actions,
@@ -83,7 +85,7 @@ export function PageSection({
   className,
 }: PageSectionProps) {
   return (
-    <section className={cn("space-y-4", className)}>
+    <section id={id} className={cn("space-y-4 scroll-mt-20", className)}>
       {(title || description || actions) && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-0.5">

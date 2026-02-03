@@ -18,9 +18,15 @@ import {
 import { MetricCard } from "@/components/cards/metric-card"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { ActivityFeed, type ActivityItem } from "@/components/dashboard/activity-feed"
+import { OnboardingTour } from "@/components/onboarding/onboarding-tour"
+import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist"
 import { graphqlRequest } from "@/lib/api/graphql"
 import { getLocaleFromCookies } from "@/lib/i18n/locale"
 import { routes } from "@/lib/routes"
+import { hasCompletedOnboardingTour } from "@/actions/onboarding"
+import { fetchClientsCount } from "@/features/clients/queries"
+import { fetchJobsCount } from "@/features/jobs/queries"
+import { fetchPaymentsCount } from "@/features/payments/queries"
 
 // Mock activities - em producao viriam do backend
 function getMockActivities(): ActivityItem[] {
@@ -68,6 +74,9 @@ export default async function DashboardPage() {
   const locale = await getLocaleFromCookies()
   const { t } = createTranslator(locale)
 
+  // Check if user has completed the onboarding tour
+  const tourCompleted = await hasCompletedOnboardingTour()
+
   const countsQuery = `
     query DashboardCounts($active: String, $completed: String) {
       active: jobsCount(status: $active)
@@ -86,9 +95,12 @@ export default async function DashboardPage() {
 
   let counts = { active: 0, completed: 0, total: 0 }
   let payments = { paymentsSummary: { totalProcessed: 0 } }
+  let clientsCount = 0
+  let jobsCount = 0
+  let paymentsCount = 0
 
   try {
-    ;[counts, payments] = await Promise.all([
+    ;[counts, payments, clientsCount, jobsCount, paymentsCount] = await Promise.all([
       graphqlRequest<{ active: number; completed: number; total: number }>(
         countsQuery,
         { active: "in_progress", completed: "completed" }
@@ -96,6 +108,9 @@ export default async function DashboardPage() {
       graphqlRequest<{ paymentsSummary: { totalProcessed: number } }>(
         paymentsQuery
       ),
+      fetchClientsCount(),
+      fetchJobsCount(),
+      fetchPaymentsCount(),
     ])
   } catch {
     // fallback to zeros on failure
@@ -104,8 +119,15 @@ export default async function DashboardPage() {
   const utilization = counts.total ? counts.active / counts.total : 0
   const activities = getMockActivities()
 
+  // For the checklist, we need to know if user has any events
+  // This would come from a scheduling query in production
+  const eventsCount = 0 // TODO: fetch from scheduling service
+
   return (
     <PageContainer>
+      {/* Onboarding Tour Modal */}
+      <OnboardingTour showTour={!tourCompleted} />
+
       <PageHeader
         title={t("dashboard.title")}
         description={t("dashboard.subtitle")}
@@ -118,6 +140,18 @@ export default async function DashboardPage() {
           </Button>
         }
       />
+
+      {/* Onboarding Checklist - Shows only if not all tasks are completed */}
+      {!tourCompleted && (
+        <PageSection>
+          <OnboardingChecklist
+            clientsCount={clientsCount}
+            jobsCount={jobsCount}
+            eventsCount={eventsCount}
+            paymentsCount={paymentsCount}
+          />
+        </PageSection>
+      )}
 
       {/* Quick Actions */}
       <PageSection>
