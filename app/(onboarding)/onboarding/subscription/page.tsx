@@ -1,20 +1,55 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { CheckIcon, ArrowRightIcon, ShieldCheckIcon, ZapIcon, HeadphonesIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { routes } from "@/lib/routes"
+import { processSubscriptionAction } from "@/actions/onboarding"
 
-const planFeatures = [
-  "Jobs e clientes ilimitados",
-  "Orcamentos e estimates ilimitados",
-  "Agendamento e calendario",
-  "Gestao de equipe",
-  "Relatorios completos",
-  "Integracoes com bancos",
-  "Suporte prioritario",
+const plans = [
+  {
+    id: "starter",
+    name: "Starter",
+    price: 29,
+    description: "Para pequenas empresas",
+    features: [
+      "Ate 50 jobs/mes",
+      "3 usuarios",
+      "Agendamento basico",
+      "Suporte por email",
+    ],
+  },
+  {
+    id: "professional",
+    name: "Profissional",
+    price: 49,
+    description: "Tudo que voce precisa",
+    popular: true,
+    features: [
+      "Jobs ilimitados",
+      "10 usuarios",
+      "Agendamento avancado",
+      "Relatorios completos",
+      "Integracoes",
+      "Suporte prioritario",
+    ],
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    price: 99,
+    description: "Para grandes operacoes",
+    features: [
+      "Tudo do Profissional",
+      "Usuarios ilimitados",
+      "API acesso",
+      "SSO",
+      "Gerente dedicado",
+      "SLA garantido",
+    ],
+  },
 ]
 
 const highlights = [
@@ -37,19 +72,26 @@ const highlights = [
 
 export default function SubscriptionPage() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState("professional")
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubscribe = async () => {
-    setIsLoading(true)
-    
-    // Simula processamento de pagamento
-    // Em producao, isso integraria com Stripe ou outro gateway
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // Salva estado temporario
-    localStorage.setItem("onboarding_subscription", "active")
-    
-    router.push(routes.onboardingSetup)
+  const handleSubscribe = () => {
+    setError(null)
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.append("planId", selectedPlan)
+      
+      const result = await processSubscriptionAction({ success: false, error: null }, formData)
+      
+      if (result.success) {
+        // TODO: In production, redirect to Stripe checkout
+        // For now, proceed to setup
+        router.push(routes.onboardingSetup)
+      } else {
+        setError(result.error)
+      }
+    })
   }
 
   return (
@@ -65,41 +107,71 @@ export default function SubscriptionPage() {
       {/* Header */}
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Assine para comecar
+          Escolha seu plano
         </h1>
         <p className="text-muted-foreground">
-          Acesso completo a todas as funcionalidades por um preco unico.
+          Selecione o plano ideal para seu negocio. Cancele quando quiser.
         </p>
       </div>
 
-      {/* Plan Card */}
-      <div className="rounded-xl border-2 border-foreground bg-card p-6">
-        <div className="flex items-baseline justify-between">
-          <div>
-            <h3 className="text-lg font-semibold">Plano Profissional</h3>
-            <p className="text-sm text-muted-foreground">Tudo que voce precisa</p>
-          </div>
-          <div className="text-right">
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold">$49</span>
-              <span className="text-muted-foreground">/mes</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Cobrado mensalmente</p>
-          </div>
+      {/* Error message */}
+      {error && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
         </div>
+      )}
 
-        <div className="my-6 h-px bg-border" />
-
-        <ul className="space-y-3">
-          {planFeatures.map((feature) => (
-            <li key={feature} className="flex items-center gap-3 text-sm">
-              <div className="flex size-5 items-center justify-center rounded-full bg-foreground/10">
-                <CheckIcon className="size-3 text-foreground" />
+      {/* Plans */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {plans.map((plan) => {
+          const isSelected = selectedPlan === plan.id
+          return (
+            <button
+              key={plan.id}
+              type="button"
+              onClick={() => setSelectedPlan(plan.id)}
+              disabled={isPending}
+              className={`relative flex flex-col rounded-xl border-2 p-6 text-left transition-all disabled:opacity-50 ${
+                isSelected
+                  ? "border-foreground bg-accent"
+                  : "border-border hover:border-foreground/50"
+              }`}
+            >
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background">
+                  Popular
+                </div>
+              )}
+              
+              <div className="mb-4">
+                <h3 className="font-semibold">{plan.name}</h3>
+                <p className="text-sm text-muted-foreground">{plan.description}</p>
               </div>
-              {feature}
-            </li>
-          ))}
-        </ul>
+              
+              <div className="mb-4 flex items-baseline gap-1">
+                <span className="text-3xl font-bold">${plan.price}</span>
+                <span className="text-muted-foreground">/mes</span>
+              </div>
+              
+              <ul className="flex-1 space-y-2">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2 text-sm">
+                    <div className="flex size-4 items-center justify-center rounded-full bg-foreground/10">
+                      <CheckIcon className="size-2.5 text-foreground" />
+                    </div>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              
+              {isSelected && (
+                <div className="absolute right-4 top-4 flex size-6 items-center justify-center rounded-full bg-foreground text-background">
+                  <CheckIcon className="size-4" />
+                </div>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {/* Highlights */}
@@ -123,26 +195,26 @@ export default function SubscriptionPage() {
       {/* Subscribe Button */}
       <Button
         onClick={handleSubscribe}
-        disabled={isLoading}
+        disabled={isPending}
         className="w-full"
         size="lg"
       >
-        {isLoading ? (
+        {isPending ? (
           <>
             <div className="mr-2 size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
             Processando...
           </>
         ) : (
           <>
-            Assinar agora
+            Continuar com {plans.find(p => p.id === selectedPlan)?.name}
             <ArrowRightIcon className="ml-2 size-4" />
           </>
         )}
       </Button>
 
       <p className="text-center text-xs text-muted-foreground">
-        Ao assinar, voce concorda com nossos Termos de Servico e Politica de Privacidade.
-        Cancelamento a qualquer momento.
+        Ao continuar, voce concorda com nossos Termos de Servico e Politica de Privacidade.
+        7 dias de teste gratis. Cancelamento a qualquer momento.
       </p>
     </div>
   )

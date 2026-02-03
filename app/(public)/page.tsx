@@ -338,7 +338,7 @@ export default function LandingPage() {
               <span className="font-semibold">FieldPro</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              2024 FieldPro. Todos os direitos reservados.
+              {new Date().getFullYear()} FieldPro. Todos os direitos reservados.
             </p>
           </div>
         </div>

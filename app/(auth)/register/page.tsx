@@ -1,23 +1,63 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useActionState, useRef } from "react"
+import { useEffect, useActionState, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Check, X } from "lucide-react"
 
 import { AuthForm } from "@/components/auth/auth-form"
 import { FormField } from "@/components/auth/form-field"
 import { routes } from "@/lib/routes"
 import { registerAction } from "@/actions/auth"
+import { cn } from "@/lib/utils"
+
+// Validacoes de senha
+const passwordRequirements = [
+  { label: "Minimo 8 caracteres", test: (p: string) => p.length >= 8 },
+  { label: "Uma letra maiuscula", test: (p: string) => /[A-Z]/.test(p) },
+  { label: "Uma letra minuscula", test: (p: string) => /[a-z]/.test(p) },
+  { label: "Um numero", test: (p: string) => /[0-9]/.test(p) },
+]
+
+function PasswordStrength({ password }: { password: string }) {
+  if (!password) return null
+
+  return (
+    <div className="mt-2 space-y-1">
+      {passwordRequirements.map((req, index) => {
+        const passed = req.test(password)
+        return (
+          <div
+            key={index}
+            className={cn(
+              "flex items-center gap-2 text-xs",
+              passed ? "text-green-600" : "text-muted-foreground"
+            )}
+          >
+            {passed ? (
+              <Check className="h-3 w-3" />
+            ) : (
+              <X className="h-3 w-3" />
+            )}
+            {req.label}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function RegisterPage() {
   const router = useRouter()
   const [state, formAction] = useActionState(registerAction, { error: null, success: false })
   const hasSubmitted = useRef(false)
+  const [password, setPassword] = useState("")
 
   useEffect(() => {
     // Apenas redireciona se o form foi submetido com sucesso
     if (state?.success && hasSubmitted.current) {
-      router.push(routes.dashboard)
+      // Novos usuarios vao para onboarding
+      router.push(routes.onboarding)
       router.refresh()
     }
   }, [state, router])
@@ -67,14 +107,18 @@ export default function RegisterPage() {
           autoComplete="email"
           required
         />
-        <FormField
-          name="password"
-          type="password"
-          label="Senha"
-          placeholder="Minimo 8 caracteres"
-          autoComplete="new-password"
-          required
-        />
+        <div>
+          <FormField
+            name="password"
+            type="password"
+            label="Senha"
+            placeholder="Crie uma senha segura"
+            autoComplete="new-password"
+            required
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <PasswordStrength password={password} />
+        </div>
         <p className="text-xs text-muted-foreground">
           Ao criar uma conta, voce concorda com nossos{" "}
           <Link href="#" className="underline underline-offset-4 hover:text-foreground">

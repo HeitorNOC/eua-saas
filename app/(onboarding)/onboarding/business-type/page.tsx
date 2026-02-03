@@ -1,13 +1,12 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { SparklesIcon, HardHatIcon, ArrowRightIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { routes } from "@/lib/routes"
-
-type BusinessType = "cleaning" | "construction"
+import { saveBusinessTypeAction, type BusinessType } from "@/actions/onboarding"
 
 const businessTypes = [
   {
@@ -29,14 +28,25 @@ const businessTypes = [
 export default function BusinessTypePage() {
   const router = useRouter()
   const [selected, setSelected] = useState<BusinessType | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   const handleContinue = () => {
-    if (selected) {
-      // Salva o tipo de negocio no localStorage temporariamente
-      // Em producao, isso seria salvo no backend
-      localStorage.setItem("onboarding_business_type", selected)
-      router.push(routes.onboardingSubscription)
-    }
+    if (!selected) return
+    
+    setError(null)
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.append("businessType", selected)
+      
+      const result = await saveBusinessTypeAction({ success: false, error: null }, formData)
+      
+      if (result.success) {
+        router.push(routes.onboardingSubscription)
+      } else {
+        setError(result.error)
+      }
+    })
   }
 
   return (
@@ -59,6 +69,13 @@ export default function BusinessTypePage() {
         </p>
       </div>
 
+      {/* Error message */}
+      {error && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
       {/* Options */}
       <div className="grid gap-4 sm:grid-cols-2">
         {businessTypes.map((type) => {
@@ -69,7 +86,8 @@ export default function BusinessTypePage() {
               key={type.id}
               type="button"
               onClick={() => setSelected(type.id)}
-              className={`group relative flex flex-col items-start rounded-xl border-2 p-6 text-left transition-all ${
+              disabled={isPending}
+              className={`group relative flex flex-col items-start rounded-xl border-2 p-6 text-left transition-all disabled:opacity-50 ${
                 isSelected
                   ? "border-foreground bg-accent"
                   : "border-border hover:border-foreground/50"
@@ -120,12 +138,21 @@ export default function BusinessTypePage() {
       {/* Continue Button */}
       <Button
         onClick={handleContinue}
-        disabled={!selected}
+        disabled={!selected || isPending}
         className="w-full"
         size="lg"
       >
-        Continuar
-        <ArrowRightIcon className="ml-2 size-4" />
+        {isPending ? (
+          <>
+            <div className="mr-2 size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Salvando...
+          </>
+        ) : (
+          <>
+            Continuar
+            <ArrowRightIcon className="ml-2 size-4" />
+          </>
+        )}
       </Button>
     </div>
   )
