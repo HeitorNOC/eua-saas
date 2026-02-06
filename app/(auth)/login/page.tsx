@@ -31,7 +31,6 @@ export default function LoginPage() {
         ? callbackUrl 
         : routes.dashboard
       router.push(redirectTo)
-      router.refresh()
     }
   }, [state, router, callbackUrl])
 

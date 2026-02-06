@@ -117,8 +117,9 @@ export default function EstimatesPage() {
                     </div>
                     <StatusBadge
                       status={statusMap[estimate.status]}
-                      label={statusLabels[estimate.status]}
-                    />
+                    >
+                      {statusLabels[estimate.status]}
+                    </StatusBadge>
                   </div>
                 </Link>
               ))}

@@ -6,6 +6,7 @@ import {
   BarChart3Icon,
   CalendarDaysIcon,
   ClipboardListIcon,
+  FileTextIcon,
   LayoutDashboardIcon,
   SettingsIcon,
   UsersIcon,
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils"
 const iconMap = {
   LayoutDashboardIcon,
   ClipboardListIcon,
+  FileTextIcon,
   CalendarDaysIcon,
   UsersIcon,
   WrenchIcon,

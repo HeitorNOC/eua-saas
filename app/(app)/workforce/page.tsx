@@ -101,7 +101,7 @@ export default async function WorkforcePage({
       cell: (row: Worker) => {
         const status = row.status ?? "active"
         return (
-          <StatusBadge status={status as "active" | "inactive"}>
+          <StatusBadge status={status as any}>
             {statusLabels[status] ?? status}
           </StatusBadge>
         )

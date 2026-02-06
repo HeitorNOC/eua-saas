@@ -58,7 +58,6 @@ export default function RegisterPage() {
     if (state?.success && hasSubmitted.current) {
       // Novos usuarios vao para onboarding
       router.push(routes.onboarding)
-      router.refresh()
     }
   }, [state, router])
 

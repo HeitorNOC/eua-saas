@@ -85,11 +85,24 @@ const baseItems: Omit<NavItem, "href">[] = [
 export function getNavItems(roles?: Role[], permissions?: string[]): NavItem[] {
   return baseItems
     .filter((item) => {
-      // Se o item tem roles, filtra por roles
-      const roleOk = item.roles ? roles?.some((role) => item.roles?.includes(role)) : true
-      // Se o item tem permissões, filtra por permissões
-      const permOk = item.permissions ? permissions?.some((p) => item.permissions?.includes(p)) : true
-      return roleOk && permOk
+      const hasRoleRequirement = !!item.roles?.length
+      const hasPermRequirement = !!item.permissions?.length
+
+      const roleOk = hasRoleRequirement
+        ? roles?.some((role) => item.roles!.includes(role))
+        : true
+      const permOk = hasPermRequirement
+        ? permissions?.some((p) => item.permissions!.includes(p))
+        : true
+
+      // Regra performática e sustentável:
+      // - Se o item define roles E permissões, liberar se QUALQUER uma das condições for atendida (OR).
+      // - Se define apenas uma das condições, exigir a condição definida.
+      // - Se não define nenhuma, sempre mostrar.
+      if (hasRoleRequirement && hasPermRequirement) {
+        return !!(roleOk || permOk)
+      }
+      return !!(roleOk && permOk)
     })
     .map((item) => ({
       ...item,

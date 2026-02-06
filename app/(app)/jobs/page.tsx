@@ -78,7 +78,7 @@ export default async function JobsPage(props: {
       cell: (row: Job) => {
         const status = row.status ?? "pending"
         return (
-          <StatusBadge status={status as keyof typeof statusLabels}>
+          <StatusBadge status={status as any}>
             {statusLabels[status] ?? status}
           </StatusBadge>
         )

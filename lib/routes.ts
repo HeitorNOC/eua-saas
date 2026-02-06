@@ -18,6 +18,11 @@ export const routes = {
   reports: "/reports",
   settings: "/settings",
   estimates: "/estimates",
+
+  newJob: "/jobs/new",
+  newClient: "/clients/new",
+  newPayment: "/payments/new",
+  newWorker: "/workforce/new",
   clientDetail: (id: string) => `/clients/${id}`,
   clientEdit: (id: string) => `/clients/${id}/edit`,
   clientNew: () => "/clients/new",

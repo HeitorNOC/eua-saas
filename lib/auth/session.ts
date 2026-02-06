@@ -8,7 +8,8 @@ import type { Session, Role } from "@/lib/auth/types"
 export const getSession = cache(async (): Promise<Session | null> => {
   const cookieStore = await cookies()
   const accessToken = cookieStore.get("access_token")?.value
-  
+  console.log("getSession accessToken:", accessToken)
+  console.log("getSession cookieStore:", cookieStore)
   if (!accessToken) {
     return null
   }

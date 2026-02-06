@@ -73,7 +73,9 @@ export function UpcomingEvents({
                 <span className="truncate font-medium text-sm group-hover:text-foreground">
                   {event.title}
                 </span>
-                <StatusBadge status={statusMap[status]} size="sm" />
+                <StatusBadge status={statusMap[status]} /* size="sm" */ >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </StatusBadge>
               </div>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
